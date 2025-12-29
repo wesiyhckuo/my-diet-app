@@ -83,23 +83,52 @@
 
         <p id="message" style="margin-top: 20px; font-weight: bold;"></p>
     </div>
+<script>
+    // 1. 打開網頁時，先從「抽屜」拿取之前存的數字
+    // 如果抽屜是空的，就從 0 開始
+    let total = Number(localStorage.getItem('myDailyCalorie')) || 0;
+    
+    // 一進來就先把存好的數字顯示在螢幕上
+    document.getElementById('total').innerText = total;
+    checkGoal(total);
 
-    <script>
-        let total = 0;
-        function addCalorie() {
-            let input = document.getElementById('calorieInput').value;
-            if (input === "" || input <= 0) return;
-            
-            total = total + Number(input);
-            document.getElementById('total').innerText = total;
-            document.getElementById('calorieInput').value = "";
+    function addCalorie() {
+        let input = document.getElementById('calorieInput').value;
+        if (input === "" || input <= 0) return;
+        
+        // 2. 加總數字
+        total = total + Number(input);
+        
+        // 3. 把新數字「存進抽屜」裡
+        localStorage.setItem('myDailyCalorie', total);
+        
+        // 更新畫面
+        document.getElementById('total').innerText = total;
+        document.getElementById('calorieInput').value = "";
+        checkGoal(total);
+    }
 
-            let msg = document.getElementById('message');
-            if (total >= 1400) {
-                msg.innerText = "✨ 達標了！太棒了！";
-                msg.style.color = "#4CAF50";
-            }
+    // 我們把「檢查達標」獨立成一個小功能
+    function checkGoal(currentTotal) {
+        let msg = document.getElementById('message');
+        if (currentTotal >= 1400) {
+            msg.innerText = "✨ 達標了！太棒了！";
+            msg.style.color = "#4CAF50";
+        } else {
+            msg.innerText = ""; // 沒達標前不顯示文字
         }
-    </script>
+    }
+
+    // 老師額外送你一個「歸零」功能，想重來時可以用
+    function resetRecord() {
+        if(confirm("確定要清除今天的紀錄嗎？")) {
+            total = 0;
+            localStorage.setItem('myDailyCalorie', 0);
+            document.getElementById('total').innerText = 0;
+            document.getElementById('message').innerText = "";
+        }
+    }
+</script>
+
 </body>
 </html>
