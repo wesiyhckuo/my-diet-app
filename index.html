@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>減脂計算機</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f4f4f4; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        input { padding: 12px; width: 70%; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+        button { padding: 12px 24px; background: #ff9800; border: none; color: white; border-radius: 5px; font-size: 16px; cursor: pointer; }
+        #total { color: #e91e63; font-size: 24px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🥗 我的減脂日記</h1>
+        <p>我的基礎代謝率 (BMR): <b>1400</b> kcal</p>
+        
+        <input type="number" id="calorieInput" placeholder="輸入食物熱量 (kcal)">
+        <br>
+        <button onclick="addCalorie()">＋ 加入紀錄</button>
+
+        <h3>今日總計：<span id="total">0</span> kcal</h3>
+        <p id="message"></p>
+    </div>
+
+    <script>
+        let total = 0;
+        function addCalorie() {
+            let input = document.getElementById('calorieInput').value;
+            if (input === "" || input <= 0) return;
+            
+            total = total + Number(input);
+            document.getElementById('total').innerText = total;
+            document.getElementById('calorieInput').value = "";
+
+            let msg = document.getElementById('message');
+            if (total >= 1400) {
+                msg.innerText = "🎉 恭喜！已達到基礎代謝目標！";
+                msg.style.color = "green";
+            }
+        }
+    </script>
+</body>
+</html>
