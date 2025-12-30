@@ -46,7 +46,7 @@
         let total = Number(localStorage.getItem('myDailyCalorie')) || 0;
         document.getElementById('total').innerText = total;
 
-                                async function previewAndAnalyze(event) {
+                async function previewAndAnalyze(event) {
             const file = event.target.files[0];
             if (!file) return;
 
@@ -59,10 +59,26 @@
             reader.readAsDataURL(file);
             reader.onloadend = async () => {
                 const base64Data = reader.result.split(',')[1];
-                
-                // 這次我們直接針對最穩定的型號發起總攻
                 try {
-                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+                    // --- 第一步：先問 Google 你家有哪些模型？ ---
+                    const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`;
+                    const listRes = await fetch(listUrl);
+                    const listData = await listRes.json();
+                    
+                    // 找出名字裡有 "flash" 或是 "pro" 且支援圖片辨識的模型
+                    const availableModel = listData.models.find(m => 
+                        (m.name.includes("flash") || m.name.includes("pro")) && 
+                        m.supportedGenerationMethods.includes("generateContent")
+                    );
+
+                    if (!availableModel) throw new Error("Google 說你的 Key 目前沒有可用的 AI 模型權限。");
+
+                    const finalModelName = availableModel.name;
+                    console.log("正在使用的模型是：" + finalModelName);
+
+                    // --- 第二步：使用找到的正確名字來辨識 ---
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/${finalModelName}:generateContent?key=${GEMINI_API_KEY}`;
+                    
                     const response = await fetch(apiUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -77,27 +93,21 @@
                     });
 
                     const data = await response.json();
+                    if (!response.ok) throw new Error(data.error.message);
 
-                    if (!response.ok) {
-                        // 這是核心：如果報錯，直接把 Google 的原文理由印出來
-                        const errorMsg = data.error ? data.error.message : "未知連線問題";
-                        alert("Google 拒絕理由：" + errorMsg);
-                        return;
-                    }
+                    const aiResult = data.candidates[0].content.parts[0].text.trim();
+                    const numericResult = aiResult.replace(/[^0-9]/g, '');
+                    document.getElementById('calorieInput').value = numericResult;
+                    alert("🎉 終於成功了！使用模型：" + finalModelName);
 
-                    if (data.candidates && data.candidates[0].content.parts[0].text) {
-                        const aiResult = data.candidates[0].content.parts[0].text.trim();
-                        const numericResult = aiResult.replace(/[^0-9]/g, '');
-                        document.getElementById('calorieInput').value = numericResult;
-                        alert("🎉 辨識成功！熱量是 " + numericResult + " 大卡");
-                    }
-                } catch (e) {
-                    alert("手機網路不穩定，請重試一次！");
+                } catch (error) {
+                    alert("偵測失敗理由：" + error.message);
                 } finally {
                     document.getElementById('loading').style.display = 'none';
                 }
             };
         }
+
 
 
 
