@@ -89,79 +89,55 @@
 
         <p id="message" style="margin-top: 20px; font-weight: bold;"></p>
     </div>
-<script>
-    async function previewAndAnalyze(event) {
+// 把你的 API Key 填在這裡
+const GEMINI_API_KEY = "AIzaSyBRhTWSfgBg2If5Vap2WvgCJeAAy53Jpnc"; 
+
+async function previewAndAnalyze(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    // 1. 顯示預覽圖
+    // 1. 顯示預覽
     const preview = document.getElementById('preview');
     preview.src = URL.createObjectURL(file);
     preview.style.display = 'block';
-    
-    // 2. 顯示讀取中
     document.getElementById('loading').style.display = 'block';
 
-    // --- 老師的小筆記：這裡通常會串接 API ---
-    // 因為現在沒有 API Key，我先幫你寫一個「模擬 AI」的邏輯
-    // 它可以根據照片的檔名或隨機給出一個熱量，讓你測試流程
-    setTimeout(() => {
-        const mockCalories = [350, 520, 180, 600]; // 模擬 AI 回傳的數字
-        const randomCal = mockCalories[Math.floor(Math.random() * mockCalories.length)];
-        
-        alert("AI 偵測到這可能是美味的食物！預估熱量：" + randomCal + " kcal");
-        
-        // 自動把辨識結果填入輸入框
-        document.getElementById('calorieInput').value = randomCal;
-        document.getElementById('loading').style.display = 'none';
-    }, 2000); 
+    // 2. 把圖片轉成 AI 能讀取的格式 (Base64)
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onloadend = async () => {
+        const base64Data = reader.result.split(',')[1];
+
+        // 3. 呼叫 Google AI 服務
+        try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            { text: "這是一張食物的照片，請預估它的熱量是多少大卡？請只回傳數字，不要有文字說明。" },
+                            { inline_data: { mime_type: "image/jpeg", data: base64Data } }
+                        ]
+                    }]
+                })
+            });
+
+            const data = await response.json();
+            const aiResult = data.candidates[0].content.parts[0].text.trim();
+            
+            // 4. 拿到結果後填入
+            alert("AI 辨識成功！");
+            document.getElementById('calorieInput').value = aiResult;
+        } catch (error) {
+            alert("辨識出錯了，請檢查 API Key 是否正確！");
+            console.error(error);
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+        }
+    };
 }
 
-    // 1. 打開網頁時，先從「抽屜」拿取之前存的數字
-    // 如果抽屜是空的，就從 0 開始
-    let total = Number(localStorage.getItem('myDailyCalorie')) || 0;
-    
-    // 一進來就先把存好的數字顯示在螢幕上
-    document.getElementById('total').innerText = total;
-    checkGoal(total);
-
-    function addCalorie() {
-        let input = document.getElementById('calorieInput').value;
-        if (input === "" || input <= 0) return;
-        
-        // 2. 加總數字
-        total = total + Number(input);
-        
-        // 3. 把新數字「存進抽屜」裡
-        localStorage.setItem('myDailyCalorie', total);
-        
-        // 更新畫面
-        document.getElementById('total').innerText = total;
-        document.getElementById('calorieInput').value = "";
-        checkGoal(total);
-    }
-
-    // 我們把「檢查達標」獨立成一個小功能
-    function checkGoal(currentTotal) {
-        let msg = document.getElementById('message');
-        if (currentTotal >= 1400) {
-            msg.innerText = "✨ 達標了！太棒了！";
-            msg.style.color = "#4CAF50";
-        } else {
-            msg.innerText = ""; // 沒達標前不顯示文字
-        }
-    }
-
-    // 老師額外送你一個「歸零」功能，想重來時可以用
-    function resetRecord() {
-        if(confirm("確定要清除今天的紀錄嗎？")) {
-            total = 0;
-            localStorage.setItem('myDailyCalorie', 0);
-            document.getElementById('total').innerText = 0;
-            document.getElementById('message').innerText = "";
-        }
-    }
-</script>
 
 </body>
 </html>
