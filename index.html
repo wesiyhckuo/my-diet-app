@@ -19,10 +19,74 @@
 </head>
 <body>
 
-    <div class="card">
+        <div class="card">
+        <details style="text-align: left; margin-bottom: 20px; font-size: 14px; color: #666;">
+            <summary>⚙️ 設定個人基本代謝 (BMR)</summary>
+            <div style="background: #f9f9f9; padding: 10px; border-radius: 8px; margin-top: 10px;">
+                <label>性別：</label>
+                <select id="gender">
+                    <option value="male">男生</option>
+                    <option value="female">女生</option>
+                </select><br><br>
+                <input type="number" id="userAge" placeholder="年齡" style="width: 40%; margin: 5px;">
+                <input type="number" id="userHeight" placeholder="身高 (cm)" style="width: 40%; margin: 5px;">
+                <input type="number" id="userWeight" placeholder="體重 (kg)" style="width: 40%; margin: 5px;">
+                <button class="btn" style="background: #34495e; padding: 8px;" onclick="calculateBMR()">更新每日目標</button>
+            </div>
+        </details>
+
         <h1>今日攝取熱量</h1>
         <div class="total-kcal" id="totalDisplay">0</div>
-        <p>每日目標：1400 kcal</p>
+        <p>每日目標：<span id="targetDisplay">1400</span> kcal</p>
+        ```
+
+#### 第二步：加入 JavaScript 計算邏輯
+請將這段 `calculateBMR` 函數加進你的 `<script>` 標籤中。
+
+```javascript
+        // 計算 BMR 的函數
+        function calculateBMR() {
+            const gender = document.getElementById('gender').value;
+            const age = parseFloat(document.getElementById('userAge').value);
+            const height = parseFloat(document.getElementById('userHeight').value);
+            const weight = parseFloat(document.getElementById('userWeight').value);
+
+            if (!age || !height || !weight) {
+                alert("請填寫完整的身高、體重與年齡資訊喔！");
+                return;
+            }
+
+            let bmr = 0;
+            if (gender === 'male') {
+                // 男生公式: 10 * 體重 + 6.25 * 身高 - 5 * 年齡 + 5
+                bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
+            } else {
+                // 女生公式: 10 * 體重 + 6.25 * 身高 - 5 * 年齡 - 161
+                bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
+            }
+
+            // 無條件進位到整數
+            const finalTarget = Math.ceil(bmr);
+            
+            // 更新畫面顯示
+            document.getElementById('targetDisplay').innerText = finalTarget;
+            
+            // 存入手機記憶體，下次打開就不用重新輸入
+            localStorage.setItem('user_target_kcal', finalTarget);
+            
+            alert(`設定成功！你每天的基礎代謝率 (BMR) 為 ${finalTarget} 大卡。`);
+        }
+
+        // 修改原本的 window.onload，讓它自動載入存過的目標熱量
+        window.onload = () => {
+            const savedTarget = localStorage.getItem('user_target_kcal');
+            if (savedTarget) {
+                document.getElementById('targetDisplay').innerText = savedTarget;
+            }
+            updateUI();
+        };
+
+        
 
         <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none" onchange="previewAndAnalyze(event)">
         <button class="btn" onclick="document.getElementById('fileInput').click()">📸 拍攝食物辨識</button>
