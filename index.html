@@ -69,6 +69,12 @@
     </style>
 </head>
 <body>
+<div style="margin: 20px 0;">
+    <button onclick="document.getElementById('photoInput').click()" style="background: #4A90E2;">📸 拍食物辨識</button>
+    <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none" onchange="previewAndAnalyze(event)">
+</div>
+<div id="loading" style="display:none;">🤖 AI 正在看照片...</div>
+<img id="preview" style="width: 100%; border-radius: 10px; display: none; margin-top: 10px;">
 
     <div class="card">
         <h1>🥗 減脂日記</h1>
@@ -84,6 +90,33 @@
         <p id="message" style="margin-top: 20px; font-weight: bold;"></p>
     </div>
 <script>
+    async function previewAndAnalyze(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // 1. 顯示預覽圖
+    const preview = document.getElementById('preview');
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+    
+    // 2. 顯示讀取中
+    document.getElementById('loading').style.display = 'block';
+
+    // --- 老師的小筆記：這裡通常會串接 API ---
+    // 因為現在沒有 API Key，我先幫你寫一個「模擬 AI」的邏輯
+    // 它可以根據照片的檔名或隨機給出一個熱量，讓你測試流程
+    setTimeout(() => {
+        const mockCalories = [350, 520, 180, 600]; // 模擬 AI 回傳的數字
+        const randomCal = mockCalories[Math.floor(Math.random() * mockCalories.length)];
+        
+        alert("AI 偵測到這可能是美味的食物！預估熱量：" + randomCal + " kcal");
+        
+        // 自動把辨識結果填入輸入框
+        document.getElementById('calorieInput').value = randomCal;
+        document.getElementById('loading').style.display = 'none';
+    }, 2000); 
+}
+
     // 1. 打開網頁時，先從「抽屜」拿取之前存的數字
     // 如果抽屜是空的，就從 0 開始
     let total = Number(localStorage.getItem('myDailyCalorie')) || 0;
