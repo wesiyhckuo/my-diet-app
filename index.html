@@ -41,72 +41,62 @@
 
     <script>
         // 這是你的 API Key (已根據截圖幫你填好)
-        const GEMINI_API_KEY ="AIzaSyB9_eiKlcR2SktMPZFHTi8BVkxaS1Zlr3U"; 
+        const GEMINI_API_KEY ="AIzaSyAOJLwWaUDysWncxsDmsaY3zA5ALAz1nHQ"; 
 
         let total = Number(localStorage.getItem('myDailyCalorie')) || 0;
         document.getElementById('total').innerText = total;
 
                 async function previewAndAnalyze(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+    const file = event.target.files[0];
+    if (!file) return;
 
-            const preview = document.getElementById('preview');
-            preview.src = URL.createObjectURL(file);
-            preview.style.display = 'block';
-            document.getElementById('loading').style.display = 'block';
+    // 顯示照片預覽
+    const preview = document.getElementById('preview');
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+    document.getElementById('loading').style.display = 'block';
 
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onloadend = async () => {
-                const base64Data = reader.result.split(',')[1];
-                try {
-                    // --- 第一步：先問 Google 你家有哪些模型？ ---
-                    const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`;
-                    const listRes = await fetch(listUrl);
-                    const listData = await listRes.json();
-                    
-                    // 找出名字裡有 "flash" 或是 "pro" 且支援圖片辨識的模型
-                    const availableModel = listData.models.find(m => 
-                        (m.name.includes("flash") || m.name.includes("pro")) && 
-                        m.supportedGenerationMethods.includes("generateContent")
-                    );
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onloadend = async () => {
+        const base64Data = reader.result.split(',')[1];
+        try {
+            // 使用最標準的 v1beta 網址與 flash 模型
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+            
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            { text: "這是一張食物照片，請只回傳估計的熱量數字（大卡），不要有文字說明。" },
+                            { inline_data: { mime_type: "image/jpeg", data: base64Data } }
+                        ]
+                    }]
+                })
+            });
 
-                    if (!availableModel) throw new Error("Google 說你的 Key 目前沒有可用的 AI 模型權限。");
+            const data = await response.json();
 
-                    const finalModelName = availableModel.name;
-                    console.log("正在使用的模型是：" + finalModelName);
+            if (data.candidates && data.candidates[0].content.parts[0].text) {
+                const aiResult = data.candidates[0].content.parts[0].text.trim();
+                const numericResult = aiResult.replace(/[^0-9]/g, '');
+                document.getElementById('calorieInput').value = numericResult;
+                alert("🎉 AI 辨識成功！熱量為：" + numericResult + " kcal");
+            } else {
+                // 如果還是報錯，就把 Google 給的錯誤訊息彈出來，方便我們診斷
+                alert("Google 回傳訊息：" + JSON.stringify(data.error.message));
+            }
 
-                    // --- 第二步：使用找到的正確名字來辨識 ---
-                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/${finalModelName}:generateContent?key=${GEMINI_API_KEY}`;
-                    
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{
-                                parts: [
-                                    { text: "這是一張食物照片，請只回傳熱量數字（大卡）。" },
-                                    { inline_data: { mime_type: "image/jpeg", data: base64Data } }
-                                ]
-                            }]
-                        })
-                    });
-
-                    const data = await response.json();
-                    if (!response.ok) throw new Error(data.error.message);
-
-                    const aiResult = data.candidates[0].content.parts[0].text.trim();
-                    const numericResult = aiResult.replace(/[^0-9]/g, '');
-                    document.getElementById('calorieInput').value = numericResult;
-                    alert("🎉 終於成功了！使用模型：" + finalModelName);
-
-                } catch (error) {
-                    alert("偵測失敗理由：" + error.message);
-                } finally {
-                    document.getElementById('loading').style.display = 'none';
-                }
-            };
+        } catch (error) {
+            alert("連線失敗，請稍後再試！");
+        } finally {
+            document.getElementById('loading').style.display = 'none';
         }
+    };
+}
+
 
 
 
