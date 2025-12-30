@@ -7,77 +7,57 @@
     <style>
         body { font-family: -apple-system, sans-serif; background: #f4f4f9; display: flex; flex-direction: column; align-items: center; padding: 20px; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
-        h1 { color: #333; margin-bottom: 5px; }
+        h1 { color: #333; margin-bottom: 5px; font-size: 24px; }
         .total-kcal { font-size: 48px; color: #e67e22; font-weight: bold; margin: 10px 0; }
         .btn { background: #4a90e2; color: white; padding: 12px 24px; border-radius: 8px; border: none; cursor: pointer; font-size: 16px; margin: 10px 0; width: 100%; }
         #preview { width: 100%; border-radius: 10px; margin-top: 15px; display: none; }
         .history { width: 100%; max-width: 400px; margin-top: 20px; }
         .history-item { background: white; padding: 10px; border-radius: 8px; margin-bottom: 5px; display: flex; justify-content: space-between; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         #loading { display: none; color: #666; margin: 10px 0; }
-        input { padding: 10px; width: 80%; border: 1px solid #ddd; border-radius: 5px; margin: 10px 0; font-size: 16px; text-align: center; }
+        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px; font-size: 14px; }
+        details { text-align: left; margin-bottom: 20px; font-size: 14px; color: #666; width: 100%; }
     </style>
 </head>
 <body>
 
-        <div class="card">
-        <details style="text-align: left; margin-bottom: 20px; font-size: 14px; color: #666;">
+    <div class="card">
+        <details>
             <summary>⚙️ 設定個人基本代謝 (BMR)</summary>
-            <div style="background: #f9f9f9; padding: 10px; border-radius: 8px; margin-top: 10px;">
-                <label>性別：</label>
-                <select id="gender">
-                    <option value="male">男生</option>
-                    <option value="female">女生</option>
-                </select><br><br>
-                <input type="number" id="userAge" placeholder="年齡" style="width: 40%; margin: 5px;">
-                <input type="number" id="userHeight" placeholder="身高 (cm)" style="width: 40%; margin: 5px;">
-                <input type="number" id="userWeight" placeholder="體重 (kg)" style="width: 40%; margin: 5px;">
-                <button class="btn" style="background: #34495e; padding: 8px;" onclick="calculateBMR()">更新每日目標</button>
+            <div style="background: #f9f9f9; padding: 10px; border-radius: 8px; margin-top: 10px; display: flex; flex-wrap: wrap; justify-content: center;">
+                <select id="gender" style="width: 90%;">
+                    <option value="male">我是男生</option>
+                    <option value="female">我是女生</option>
+                </select>
+                <input type="number" id="userAge" placeholder="年齡" style="width: 40%;">
+                <input type="number" id="userHeight" placeholder="身高(cm)" style="width: 40%;">
+                <input type="number" id="userWeight" placeholder="體重(kg)" style="width: 40%;">
+                <button class="btn" style="background: #34495e; padding: 8px; font-size: 14px;" onclick="calculateBMR()">更新每日目標</button>
             </div>
         </details>
 
         <h1>今日攝取熱量</h1>
         <div class="total-kcal" id="totalDisplay">0</div>
         <p>每日目標：<span id="targetDisplay">1400</span> kcal</p>
-        ```
 
-#### 第二步：加入 JavaScript 計算邏輯
-請將這段 `calculateBMR` 函數加進你的 `<script>` 標籤中。
+        <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none" onchange="previewAndAnalyze(event)">
+        <button class="btn" onclick="document.getElementById('fileInput').click()">📸 拍攝食物辨識</button>
+        
+        <div id="loading">🤖 AI 正在分析食物...</div>
+        <img id="preview">
 
-```javascript
-        // 計算 BMR 的函數
-        function calculateBMR() {
-            const gender = document.getElementById('gender').value;
-            const age = parseFloat(document.getElementById('userAge').value);
-            const height = parseFloat(document.getElementById('userHeight').value);
-            const weight = parseFloat(document.getElementById('userWeight').value);
+        <input type="number" id="calorieInput" placeholder="辨識結果會顯示在此" style="width: 80%; text-align: center;">
+        <button class="btn" style="background:#27ae60" onclick="addRecord()">➕ 記錄這餐熱量</button>
+        <button class="btn" style="background:#95a5a6; font-size:12px; padding: 5px;" onclick="clearAll()">重設今日紀錄</button>
+    </div>
 
-            if (!age || !height || !weight) {
-                alert("請填寫完整的身高、體重與年齡資訊喔！");
-                return;
-            }
+    <div class="history" id="historyList"></div>
 
-            let bmr = 0;
-            if (gender === 'male') {
-                // 男生公式: 10 * 體重 + 6.25 * 身高 - 5 * 年齡 + 5
-                bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
-            } else {
-                // 女生公式: 10 * 體重 + 6.25 * 身高 - 5 * 年齡 - 161
-                bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
-            }
+    <script>
+        // 請確保這裡填入你成功的 API KEY
+        const GEMINI_API_KEY = "AIzaSyAOJLwWaUDysWncxsDmsaY3zA5ALAz1nHQ"; 
 
-            // 無條件進位到整數
-            const finalTarget = Math.ceil(bmr);
-            
-            // 更新畫面顯示
-            document.getElementById('targetDisplay').innerText = finalTarget;
-            
-            // 存入手機記憶體，下次打開就不用重新輸入
-            localStorage.setItem('user_target_kcal', finalTarget);
-            
-            alert(`設定成功！你每天的基礎代謝率 (BMR) 為 ${finalTarget} 大卡。`);
-        }
+        let history = JSON.parse(localStorage.getItem('diet_history')) || [];
 
-        // 修改原本的 window.onload，讓它自動載入存過的目標熱量
         window.onload = () => {
             const savedTarget = localStorage.getItem('user_target_kcal');
             if (savedTarget) {
@@ -86,40 +66,30 @@
             updateUI();
         };
 
-        
+        function calculateBMR() {
+            const gender = document.getElementById('gender').value;
+            const age = parseFloat(document.getElementById('userAge').value);
+            const height = parseFloat(document.getElementById('userHeight').value);
+            const weight = parseFloat(document.getElementById('userWeight').value);
 
-        <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none" onchange="previewAndAnalyze(event)">
-        <button class="btn" onclick="document.getElementById('fileInput').click()">📸 拍攝食物辨識</button>
-        
-        <div id="loading">🤖 AI 正在分析食物...</div>
-        <img id="preview">
+            if (!age || !height || !weight) return alert("請填寫完整的資訊喔！");
 
-        <input type="number" id="calorieInput" placeholder="辨識結果會顯示在此">
-        <button class="btn" style="background:#27ae60" onclick="addRecord()">➕ 記錄這餐熱量</button>
-        <button class="btn" style="background:#95a5a6; font-size:12px" onclick="clearAll()">重設今日紀錄</button>
-    </div>
+            let bmr = (gender === 'male') 
+                ? (10 * weight) + (6.25 * height) - (5 * age) + 5
+                : (10 * weight) + (6.25 * height) - (5 * age) - 161;
 
-    <div class="history" id="historyList">
-        </div>
-
-    <script>
-        // 1. 請確認這裡填入你那把成功的 API KEY
-        const GEMINI_API_KEY = "AIzaSyAOJLwWaUDysWncxsDmsaY3zA5ALAz1nHQ"; 
-        let totalKcal = 0;
-        let history = JSON.parse(localStorage.getItem('diet_history')) || [];
-
-        // 初始化頁面
-        window.onload = () => {
-            updateUI();
-        };
+            const finalTarget = Math.ceil(bmr);
+            document.getElementById('targetDisplay').innerText = finalTarget;
+            localStorage.setItem('user_target_kcal', finalTarget);
+            alert("目標已更新為：" + finalTarget + " kcal");
+        }
 
         async function previewAndAnalyze(event) {
             const file = event.target.files[0];
             if (!file) return;
 
-            const preview = document.getElementById('preview');
-            preview.src = URL.createObjectURL(file);
-            preview.style.display = 'block';
+            document.getElementById('preview').src = URL.createObjectURL(file);
+            document.getElementById('preview').style.display = 'block';
             document.getElementById('loading').style.display = 'block';
             document.getElementById('calorieInput').value = "";
 
@@ -128,7 +98,6 @@
             reader.onloadend = async () => {
                 const base64Data = reader.result.split(',')[1];
                 try {
-                    // 自動抓取可用模型名稱 (維持你最成功的邏輯)
                     const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
                     const listData = await listRes.json();
                     const model = listData.models.find(m => m.name.includes("flash") && m.supportedGenerationMethods.includes("generateContent"));
@@ -137,25 +106,17 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            contents: [{
-                                parts: [
-                                    { text: "這是一張食物照片，請只回傳估計熱量數字（大卡）。" },
-                                    { inline_data: { mime_type: "image/jpeg", data: base64Data } }
-                                ]
-                            }]
+                            contents: [{ parts: [{ text: "這是一張食物照片，請只回傳熱量數字。" }, { inline_data: { mime_type: "image/jpeg", data: base64Data } }] }]
                         })
                     });
 
                     const data = await response.json();
                     if (data.candidates) {
-                        const aiResult = data.candidates[0].content.parts[0].text.trim();
-                        const num = aiResult.replace(/[^0-9]/g, '');
+                        const num = data.candidates[0].content.parts[0].text.trim().replace(/[^0-9]/g, '');
                         document.getElementById('calorieInput').value = num;
-                        // 這裡移除了 alert，改用震動提醒（部分手機支援）
-                        if (navigator.vibrate) navigator.vibrate(50);
                     }
-                } catch (error) {
-                    alert("辨識失敗，請手動輸入或重試");
+                } catch (e) {
+                    alert("辨識失敗，請手動輸入");
                 } finally {
                     document.getElementById('loading').style.display = 'none';
                 }
@@ -165,14 +126,10 @@
         function addRecord() {
             const kcal = parseInt(document.getElementById('calorieInput').value);
             if (!kcal) return alert("請輸入數字");
-
             const now = new Date();
             const timeStr = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
-            
-            // 加入歷史陣列
             history.unshift({ time: timeStr, kcal: kcal });
             localStorage.setItem('diet_history', JSON.stringify(history));
-            
             document.getElementById('calorieInput').value = "";
             document.getElementById('preview').style.display = "none";
             updateUI();
@@ -181,21 +138,19 @@
         function updateUI() {
             const list = document.getElementById('historyList');
             list.innerHTML = "<h3>今日餐點紀錄</h3>";
-            
-            totalKcal = 0;
+            let total = 0;
             history.forEach(item => {
-                totalKcal += item.kcal;
+                total += item.kcal;
                 const div = document.createElement('div');
                 div.className = 'history-item';
                 div.innerHTML = `<span>🕒 ${item.time}</span> <span>${item.kcal} kcal</span>`;
                 list.appendChild(div);
             });
-
-            document.getElementById('totalDisplay').innerText = totalKcal;
+            document.getElementById('totalDisplay').innerText = total;
         }
 
         function clearAll() {
-            if(confirm("確定要刪除今天的所有紀錄嗎？")) {
+            if(confirm("確定要刪除所有紀錄嗎？")) {
                 history = [];
                 localStorage.removeItem('diet_history');
                 updateUI();
