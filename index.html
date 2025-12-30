@@ -46,7 +46,7 @@
         let total = Number(localStorage.getItem('myDailyCalorie')) || 0;
         document.getElementById('total').innerText = total;
 
-                async function previewAndAnalyze(event) {
+                        async function previewAndAnalyze(event) {
             const file = event.target.files[0];
             if (!file) return;
 
@@ -59,45 +59,48 @@
             reader.readAsDataURL(file);
             reader.onloadend = async () => {
                 const base64Data = reader.result.split(',')[1];
-                try {
-                    // --- 修正重點：改用 gemini-1.5-flash-latest 並且確保使用 v1beta ---
-                    // 經過測試，目前 flash-latest 在 v1beta 網址下最不容易報 not found
-                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
-                    
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{
-                                parts: [
-                                    { text: "這是一張食物照片，請幫我分析它的熱量是多少大卡？請只回傳數字，不要有其他文字。" },
-                                    { inline_data: { mime_type: "image/jpeg", data: base64Data } }
-                                ]
-                            }]
-                        })
-                    });
+                
+                // 這裡我們列出所有可能的模型名稱，讓程式一個一個試
+                const models = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro-vision"];
+                let success = false;
 
-                    const data = await response.json();
+                for (let modelName of models) {
+                    if (success) break;
+                    try {
+                        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{
+                                    parts: [
+                                        { text: "這是一張食物照片，請只回傳熱量數字（大卡）。" },
+                                        { inline_data: { mime_type: "image/jpeg", data: base64Data } }
+                                    ]
+                                }]
+                            })
+                        });
 
-                    if (!response.ok) {
-                        // 如果最新版還是不行，我們在這裡做一個「自動降級」測試
-                        alert("偵測到模型存取問題，正在嘗試備用方案...");
-                        return; 
+                        const data = await response.json();
+                        if (response.ok && data.candidates) {
+                            const aiResult = data.candidates[0].content.parts[0].text.trim();
+                            const numericResult = aiResult.replace(/[^0-9]/g, '');
+                            document.getElementById('calorieInput').value = numericResult;
+                            alert("成功！使用模型：" + modelName);
+                            success = true;
+                        }
+                    } catch (e) {
+                        console.log(modelName + " 嘗試失敗，嘗試下一個...");
                     }
-
-                    if (data.candidates && data.candidates[0].content.parts[0].text) {
-                        const aiResult = data.candidates[0].content.parts[0].text.trim();
-                        const numericResult = aiResult.replace(/[^0-9]/g, '');
-                        document.getElementById('calorieInput').value = numericResult;
-                        alert("AI 辨識成功！");
-                    }
-                } catch (error) {
-                    alert("連線失敗：" + error.message);
-                } finally {
-                    document.getElementById('loading').style.display = 'none';
                 }
+
+                if (!success) {
+                    alert("所有 AI 模型都無法存取。請檢查：\n1. API Key 是否正確貼上？\n2. Google AI Studio 是否有權限限制？");
+                }
+                document.getElementById('loading').style.display = 'none';
             };
         }
+
 
 
         
