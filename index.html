@@ -50,59 +50,64 @@
     const file = event.target.files[0];
     if (!file) return;
 
-    const preview = document.getElementById('preview');
-    preview.src = URL.createObjectURL(file);
-    preview.style.display = 'block';
+    document.getElementById('preview').src = URL.createObjectURL(file);
+    document.getElementById('preview').style.display = 'block';
     document.getElementById('loading').style.display = 'block';
 
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onloadend = async () => {
         const base64Data = reader.result.split(',')[1];
-        
-        // 我們準備三種可能的路徑，讓程式自動挑戰
-        const attempts = [
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
-            `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${GEMINI_API_KEY}`
-        ];
+        try {
+            // 第一步：動態向 Google 查詢這把 Key 到底能用哪個模型
+            const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`;
+            const listRes = await fetch(listUrl);
+            const listData = await listRes.json();
+            
+            // 找出名字裡有 flash 且支援產生內容的模型
+            const targetModel = listData.models.find(m => 
+                m.name.includes("flash") && m.supportedGenerationMethods.includes("generateContent")
+            ) || listData.models.find(m => m.supportedGenerationMethods.includes("generateContent"));
 
-        let success = false;
-
-        for (let url of attempts) {
-            if (success) break;
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [
-                                { text: "這張食物照大約多少大卡？請只回傳純數字。" },
-                                { inline_data: { mime_type: "image/jpeg", data: base64Data } }
-                            ]
-                        }]
-                    })
-                });
-
-                const data = await response.json();
-                if (response.ok && data.candidates) {
-                    const aiResult = data.candidates[0].content.parts[0].text.trim();
-                    document.getElementById('calorieInput').value = aiResult.replace(/[^0-9]/g, '');
-                    alert("🎉 辨識成功！");
-                    success = true;
-                }
-            } catch (e) {
-                console.log("嘗試路徑失敗，換下一個...");
+            if (!targetModel) {
+                alert("找不到可用模型，請確認 API Key 是否已完全啟用。");
+                return;
             }
-        }
 
-        if (!success) {
-            alert("Google API 目前仍拒絕存取模型。請確認：\n1. API Key 是否貼對？\n2. 試著在手機上切換 WiFi 或行動網路 (IP 問題)。");
+            // 第二步：使用找到的「真名」去進行辨識
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/${targetModel.name}:generateContent?key=${GEMINI_API_KEY}`;
+            
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            { text: "這是一張食物照片，請只回傳熱量數字（大卡）。" },
+                            { inline_data: { mime_type: "image/jpeg", data: base64Data } }
+                        ]
+                    }]
+                })
+            });
+
+            const data = await response.json();
+            if (data.candidates) {
+                const aiResult = data.candidates[0].content.parts[0].text.trim();
+                document.getElementById('calorieInput').value = aiResult.replace(/[^0-9]/g, '');
+                alert("辨識成功！使用模型：" + targetModel.name);
+            } else {
+                alert("Google 回傳： " + (data.error ? data.error.message : "辨識失敗"));
+            }
+
+        } catch (error) {
+            alert("系統自動修正中，請再試一次！");
+            console.error(error);
+        } finally {
+            document.getElementById('loading').style.display = 'none';
         }
-        document.getElementById('loading').style.display = 'none';
     };
 }
+
 
 
 
