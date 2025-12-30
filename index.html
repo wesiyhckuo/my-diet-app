@@ -46,7 +46,7 @@
         let total = Number(localStorage.getItem('myDailyCalorie')) || 0;
         document.getElementById('total').innerText = total;
 
-        async function previewAndAnalyze(event) {
+                async function previewAndAnalyze(event) {
             const file = event.target.files[0];
             if (!file) return;
 
@@ -66,25 +66,33 @@
                         body: JSON.stringify({
                             contents: [{
                                 parts: [
-                                    { text: "這是一張食物照片，請預估總熱量。只回傳數字，不要任何文字說明。" },
+                                    { text: "這是一張食物照片，請預估總熱量。只回傳數字，不要任何文字。" },
                                     { inline_data: { mime_type: "image/jpeg", data: base64Data } }
                                 ]
                             }]
                         })
                     });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        alert("Google 拒絕了請求：" + errorData.error.message);
+                        return;
+                    }
+
                     const data = await response.json();
                     const aiResult = data.candidates[0].content.parts[0].text.trim();
-                    // 確保只取出數字
                     const numericResult = aiResult.replace(/[^0-9]/g, '');
                     document.getElementById('calorieInput').value = numericResult;
                 } catch (error) {
-                    alert("AI 辨識發生錯誤！");
+                    alert("網路連線或代碼邏輯錯誤！");
                     console.error(error);
                 } finally {
                     document.getElementById('loading').style.display = 'none';
                 }
             };
         }
+
+        
 
         function addCalorie() {
             let input = document.getElementById('calorieInput').value;
