@@ -1,15 +1,14 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
     <title>我的 AI 減脂日記</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
     <style>
-        /* 這裡是美化區 */
         body { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
         .card { background: white; padding: 30px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); width: 85%; max-width: 350px; text-align: center; }
         #total { color: #ff5722; font-size: 40px; display: block; margin: 10px 0; font-weight: bold; }
-        input { padding: 15px; width: 80%; margin: 10px 0; border: 2px solid #eee; border-radius: 12px; font-size: 18px; }
+        input { padding: 15px; width: 80%; margin: 10px 0; border: 2px solid #eee; border-radius: 12px; font-size: 18px; outline: none; }
         button { padding: 15px 25px; background: #4A90E2; border: none; color: white; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; margin: 5px; width: 100%; }
         .btn-add { background: linear-gradient(to right, #ff9800, #ff5722); }
         #loading { color: #4A90E2; font-weight: bold; display: none; margin: 10px 0; }
@@ -20,7 +19,7 @@
 
     <div class="card">
         <h1>🥗 減脂日記</h1>
-        <p>每日目標：1400 kcal</p>
+        <p style="color:#666;">每日目標：1400 kcal</p>
         
         <span id="total">0</span>
         <p>今日已攝取熱量</p>
@@ -29,7 +28,7 @@
         <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none" onchange="previewAndAnalyze(event)">
         
         <div id="loading">🤖 AI 正在看照片...</div>
-        <img id="preview">
+        <img id="preview" alt="預覽圖">
 
         <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
 
@@ -37,16 +36,16 @@
         <button class="btn-add" onclick="addCalorie()">＋ 記錄熱量</button>
         
         <p id="message" style="margin-top: 20px; font-weight: bold;"></p>
-        <button onclick="resetRecord()" style="background: #ccc; font-size: 12px; width: auto; padding: 5px 10px;">清除今日紀錄</button>
+        <button onclick="resetRecord()" style="background: #ccc; font-size: 12px; width: auto; padding: 5px 10px; border:none; border-radius:5px;">清除今日紀錄</button>
     </div>
 
     <script>
-        const GEMINI_API_KEY = AIzaSyBRhTWSfgBg2If5Vap2WvgCJeAAy53Jpnc; // <--- 記得把這換成你的 Key
+        // 這是你的 API Key (已根據截圖幫你填好)
+        const GEMINI_API_KEY = "AIzaSyBRhTWSfgBg2If5Vap2WvgCJeAAy53Jpnc"; 
 
         let total = Number(localStorage.getItem('myDailyCalorie')) || 0;
         document.getElementById('total').innerText = total;
 
-        // 1. 拍照辨識邏輯
         async function previewAndAnalyze(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -67,7 +66,7 @@
                         body: JSON.stringify({
                             contents: [{
                                 parts: [
-                                    { text: "這是一張食物照片，請預估總熱量。只回傳數字，不要任何文字。" },
+                                    { text: "這是一張食物照片，請預估總熱量。只回傳數字，不要任何文字說明。" },
                                     { inline_data: { mime_type: "image/jpeg", data: base64Data } }
                                 ]
                             }]
@@ -75,16 +74,18 @@
                     });
                     const data = await response.json();
                     const aiResult = data.candidates[0].content.parts[0].text.trim();
-                    document.getElementById('calorieInput').value = aiResult;
+                    // 確保只取出數字
+                    const numericResult = aiResult.replace(/[^0-9]/g, '');
+                    document.getElementById('calorieInput').value = numericResult;
                 } catch (error) {
-                    alert("AI 辨識發生錯誤，請確認 API Key！");
+                    alert("AI 辨識發生錯誤！");
+                    console.error(error);
                 } finally {
                     document.getElementById('loading').style.display = 'none';
                 }
             };
         }
 
-        // 2. 加總邏輯
         function addCalorie() {
             let input = document.getElementById('calorieInput').value;
             if (input === "" || input <= 0) return;
@@ -110,4 +111,3 @@
     </script>
 </body>
 </html>
-
