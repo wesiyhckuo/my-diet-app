@@ -19,6 +19,7 @@
         input, select { padding: 12px; border: 1px solid #ddd; border-radius: 8px; margin: 5px; font-size: 16px; }
         details { text-align: left; margin-bottom: 20px; font-size: 14px; color: #666; width: 100%; border-bottom: 1px solid #eee; padding-bottom: 10px; }
         
+        /* Toast & Modal */
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: white; padding: 12px 24px; border-radius: 25px; display: none; z-index: 4000; font-size: 14px; white-space: nowrap; }
         #confirmModal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 3000; }
         .modal-content { background: white; padding: 25px; border-radius: 15px; width: 80%; max-width: 300px; text-align: center; }
@@ -66,8 +67,10 @@
 
         <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none" onchange="previewAndAnalyze(event)">
         <button class="btn" onclick="document.getElementById('fileInput').click()">📸 拍攝食物辨識</button>
+        
         <div id="loading">🤖 AI 正在努力分析中...</div>
         <img id="preview">
+
         <input type="number" id="calorieInput" placeholder="或手動輸入熱量" style="width: 80%; text-align: center; margin-top: 15px;">
         <button class="btn" style="background:#27ae60" onclick="addRecord()">➕ 記錄這餐熱量</button>
         <button class="btn" style="background:none; color:#95a5a6; font-size:12px; border:1px solid #ddd;" onclick="clearAll()">清除今日數據</button>
@@ -76,6 +79,7 @@
     <div class="history" id="historyList"></div>
 
     <script>
+        // 已代入您的 API KEY
         const GEMINI_API_KEY = "AIzaSyAOJLwWaUDysWncxsDmsaY3zA5ALAz1nHQ"; 
         let history = JSON.parse(localStorage.getItem('diet_history')) || [];
 
@@ -88,14 +92,14 @@
         function showToast(message) {
             const toast = document.getElementById('toast');
             toast.innerText = message; toast.style.display = 'block'; toast.classList.remove('fade-out');
-            setTimeout(() => { toast.classList.add('fade-out'); setTimeout(() => { toast.style.display = 'none'; }, 500); }, 2500);
+            setTimeout(() => { toast.classList.add('fade-out'); setTimeout(() => { toast.style.display = 'none'; }, 500); }, 3000);
         }
 
         function clearAll() { document.getElementById('confirmModal').style.display = 'flex'; }
         function closeModal() { document.getElementById('confirmModal').style.display = 'none'; }
         function confirmClear() {
             history = []; localStorage.removeItem('diet_history');
-            updateUI(); closeModal(); showToast("🧹 紀錄已清除");
+            updateUI(); closeModal(); showToast("🧹 紀錄已全部清除");
         }
 
         function calculateBMR() {
@@ -122,28 +126,40 @@
             reader.onloadend = async () => {
                 const base64 = reader.result.split(',')[1];
                 try {
-                    // 使用最穩定的模型路徑
+                    // 使用最穩定的 1.5-flash 模型名稱
                     const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
                     
                     const response = await fetch(apiURL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            contents: [{ parts: [{ text: "這是一張食物照片，請估計總熱量。只回傳一個數字。" }, { inline_data: { mime_type: "image/jpeg", data: base64 } }] }]
+                            contents: [{ parts: [
+                                { text: "這是一張食物照片，請估計其總熱量。請直接回傳一個數字即可，不要有任何其他文字。" }, 
+                                { inline_data: { mime_type: "image/jpeg", data: base64 } }
+                            ]}]
                         })
                     });
 
                     const result = await response.json();
-                    if (result.error) throw new Error(result.error.message);
+                    
+                    if (result.error) {
+                        throw new Error(result.error.message);
+                    }
 
-                    const text = result.candidates[0].content.parts[0].text;
-                    const num = text.match(/\d+/);
-                    if (num) {
-                        document.getElementById('calorieInput').value = num[0];
-                        showToast("✨ 辨識成功！");
+                    if (result.candidates && result.candidates[0].content.parts[0].text) {
+                        const rawText = result.candidates[0].content.parts[0].text;
+                        // 使用正規表達式抓取字串中的數字
+                        const matchedNum = rawText.match(/\d+/);
+                        if (matchedNum) {
+                            document.getElementById('calorieInput').value = matchedNum[0];
+                            showToast("✨ AI 辨識成功！");
+                        } else {
+                            showToast("❓ AI 無法估算熱量，請手動輸入");
+                        }
                     }
                 } catch (e) {
                     showToast("❌ 錯誤: " + e.message);
+                    console.error(e);
                 } finally {
                     document.getElementById('loading').style.display = 'none';
                     document.getElementById('calorieInput').placeholder = "或手動輸入熱量";
@@ -159,7 +175,7 @@
             localStorage.setItem('diet_history', JSON.stringify(history));
             showToast("🍛 已記錄：" + kcal + " kcal");
             document.getElementById('calorieInput').value = "";
-            preview.style.display = "none";
+            document.getElementById('preview').style.display = "none";
             updateUI();
         }
 
